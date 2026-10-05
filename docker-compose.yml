@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  agent-orchestrator:
+    build: .
+    ports:
+      - "8001:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
