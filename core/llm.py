@@ -1,37 +1,43 @@
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from core.prompt import build_system_prompt
 from core.parser import parse_tool_call
+
 
 class BaseLLM:
     def generate(self, prompt: str, memory: List[Dict[str, Any]]) -> Dict[str, Any]:
         raise NotImplementedError
 
+
 class OpenAILikeLLM(BaseLLM):
     """
     Connects to an OpenAI-compatible /v1/chat/completions endpoint.
-    This could be our local Inference Lab or an external API.
+    Targets local Inference Lab (:8002) or Ollama (:11434).
     """
-    def __init__(self, base_url: str = "http://127.0.0.1:8000/v1", api_key: str = "dummy", tools: List[Any] = None):
+    def __init__(
+        self, 
+        base_url: str = "http://127.0.0.1:8002/v1", 
+        api_key: str = "dummy", 
+        tools: List[Any] = None,
+        system_prompt: Optional[str] = None
+    ):
         self.base_url = base_url
         self.api_key = api_key
         self.tools = tools or []
-        self.system_prompt = build_system_prompt(self.tools)
+        self.system_prompt = system_prompt or build_system_prompt(self.tools)
         
     def generate(self, prompt: str, memory: List[Dict[str, Any]]) -> Dict[str, Any]:
-        # Build messages payload
         messages = [{"role": "system", "content": self.system_prompt}]
         messages.extend(memory)
         
-        # NOTE: In a real async environment we would use httpx.AsyncClient.
-        # Keeping it synchronous here for simplicity of the core loop interface.
         try:
             response = httpx.post(
                 f"{self.base_url}/chat/completions",
                 json={
                     "model": "local-model",
                     "messages": messages,
-                    "temperature": 0.0
+                    "temperature": 0.0,
+                    "max_tokens": 200
                 },
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 timeout=30.0
@@ -41,9 +47,8 @@ class OpenAILikeLLM(BaseLLM):
             
             raw_text = data["choices"][0]["message"]["content"]
             
-            # Decide if it's a tool call or text
+            # Decide if it's a tool call or direct text response
             try:
-                # If we successfully parse it as JSON matching our tool schema
                 tool_call = parse_tool_call(raw_text)
                 return {
                     "type": "tool_call",
@@ -51,12 +56,26 @@ class OpenAILikeLLM(BaseLLM):
                     "kwargs": tool_call["kwargs"]
                 }
             except ValueError:
-                # If it's not valid tool JSON, it's a regular text response
                 return {
                     "type": "text",
                     "content": raw_text
                 }
                 
         except Exception as e:
-            # Fallback for API errors
             return {"type": "text", "content": f"LLM Connection Error: {str(e)}"}
+
+
+class MockLLM(BaseLLM):
+    """
+    Deterministic scripted LLM for testing multi-agent loops and tool pipelines.
+    """
+    def __init__(self, responses: Optional[List[Dict[str, Any]]] = None):
+        self.responses = responses or []
+        self.call_count = 0
+
+    def generate(self, prompt: str, memory: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if self.call_count < len(self.responses):
+            resp = self.responses[self.call_count]
+            self.call_count += 1
+            return resp
+        return {"type": "text", "content": "Default mock response."}
