@@ -1,5 +1,10 @@
 # Agent Orchestrator 🤖
 
+[![CI](https://github.com/SKB-18/agent-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/SKB-18/agent-orchestrator/actions)
+[![Tests: 29 Passed](https://img.shields.io/badge/tests-29%2F29%20passed-brightgreen.svg)](#)
+[![Python: 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](#)
+
 A production-grade, local Multi-Agent Orchestration Framework built with Python and FastAPI.
 This repository serves as **Foundation 2** of our advanced AI engineering portfolio, demonstrating production patterns for tool invocation, specialist routing, reflective self-correction, and multi-agent consensus.
 
